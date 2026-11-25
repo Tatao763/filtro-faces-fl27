@@ -1,6 +1,8 @@
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+import csv
+import io
 import json
 import re
 import time
@@ -10,6 +12,9 @@ ENDPOINT = "https://query.wikidata.org/sparql"
 CHUNK_SIZE = 40
 SLEEP_SECONDS = 1.2
 CONTINENTES = {"Europa", "América do Norte", "América do Sul", "América"}
+
+def link_transfermarkt(nome):
+    return "https://www.transfermarkt.com/schnellsuche/ergebnis/schnellsuche?" + urlencode({"query": nome})
 
 def ler_faces():
     jogadores = []
@@ -78,32 +83,42 @@ def main():
         time.sleep(SLEEP_SECONDS)
 
     candidatos = []
-    ids_com_candidato = set()
     for id_, nome in jogadores:
         resultados = por_nome.get(nome.casefold(), [])
         unicos = {(r["clube"], r["pais"], r["continente"], r["wikidata"]) for r in resultados}
         if len(unicos) == 1:
             clube, pais, continente, entidade = next(iter(unicos))
-            candidatos.append(f"{id_} - {nome} | {clube} | {pais} | {continente} | {entidade}")
-            ids_com_candidato.add(id_)
+            candidatos.append((id_, nome, clube, pais, continente, entidade))
         elif len(unicos) > 1:
             pendentes.append((id_, nome, "Mais de um resultado possível no Wikidata"))
         else:
             pendentes.append((id_, nome, "Sem vínculo atual confirmado no Wikidata"))
 
-    Path("jogadores_europa_americas.txt").write_text(
-        "ID - Nome | Clube | País | Continente | Wikidata\n" + "\n".join(candidatos) + ("\n" if candidatos else ""),
-        encoding="utf-8"
-    )
-    Path("pendentes_revisao.txt").write_text(
-        "ID - Nome | Motivo\n" + "\n".join(f"{i} - {n} | {motivo}" for i, n, motivo in pendentes),
-        encoding="utf-8"
-    )
+    with open("jogadores_europa_americas.txt", "w", encoding="utf-8", newline="") as arquivo:
+        arquivo.write("ID - Nome | Clube | País | Continente | Wikidata\n")
+        for id_, nome, clube, pais, continente, entidade in candidatos:
+            arquivo.write(f"{id_} - {nome} | {clube} | {pais} | {continente} | {entidade}\n")
+
+    with open("transfermarkt_conferencia.csv", "w", encoding="utf-8-sig", newline="") as arquivo:
+        writer = csv.writer(arquivo, delimiter=";")
+        writer.writerow(["ID original", "Jogador", "Clube/país sugeridos pelo Wikidata", "Conferir no Transfermarkt"])
+        for id_, nome, clube, pais, continente, entidade in candidatos:
+            writer.writerow([id_, nome, f"{clube} / {pais} / {continente}", link_transfermarkt(nome)])
+        for id_, nome, motivo in pendentes:
+            writer.writerow([id_, nome, motivo, link_transfermarkt(nome)])
+
+    with open("pendentes_revisao.txt", "w", encoding="utf-8") as arquivo:
+        arquivo.write("ID - Nome | Motivo | Busca Transfermarkt\n")
+        for i, n, motivo in pendentes:
+            arquivo.write(f"{i} - {n} | {motivo} | {link_transfermarkt(n)}\n")
+
     Path("resumo.txt").write_text(
         f"Total de faces lidas: {len(jogadores)}\n"
-        f"Candidatos encontrados (precisam de conferência): {len(candidatos)}\n"
+        f"Candidatos encontrados pelo Wikidata: {len(candidatos)}\n"
         f"Pendentes de revisão: {len(pendentes)}\n"
-        "Atenção: vínculo sem data final no Wikidata não prova, sozinho, que o jogador continua ativo.\n",
+        "O CSV inclui uma busca do Transfermarkt para cada jogador, para conferência manual.\n"
+        "O Transfermarkt não é consultado automaticamente; confirme clube e situação atual no site.\n"
+        "Vínculo sem data final no Wikidata não prova, sozinho, que o jogador continua ativo.\n",
         encoding="utf-8"
     )
     print(Path("resumo.txt").read_text(encoding="utf-8"))
