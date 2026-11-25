@@ -5,13 +5,13 @@ on:
   push:
     paths:
       - 'faces.txt'
-      - 'lendas_ids.txt'
       - 'main.py'
       - '.github/workflows/filtrar.yml'
 
 jobs:
   filtrar:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - name: Baixar arquivos do repositório
         uses: actions/checkout@v4
@@ -21,15 +21,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Executar filtro
+      - name: Executar filtro gratuito pelo Wikidata
         run: python main.py
 
       - name: Disponibilizar resultados
         uses: actions/upload-artifact@v4
         with:
-          name: resultados-faces-fl27
+          name: jogadores-europa-americas-fl27
           path: |
-            lendas_filtradas.txt
-            outros_jogadores.txt
-            linhas_para_corrigir.txt
+            jogadores_europa_americas.txt
+            pendentes_revisao.txt
             resumo.txt
