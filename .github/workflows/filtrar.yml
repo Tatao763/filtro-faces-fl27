@@ -31,4 +31,5 @@ jobs:
           path: |
             jogadores_europa_americas.txt
             pendentes_revisao.txt
+            transfermarkt_conferencia.csv
             resumo.txt
