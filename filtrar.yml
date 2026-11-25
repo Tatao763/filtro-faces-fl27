@@ -1,0 +1,35 @@
+name: Filtrar faces do Football Life 27
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'faces.txt'
+      - 'lendas_ids.txt'
+      - 'main.py'
+      - '.github/workflows/filtrar.yml'
+
+jobs:
+  filtrar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar arquivos do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Executar filtro
+        run: python main.py
+
+      - name: Disponibilizar resultados
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-faces-fl27
+          path: |
+            lendas_filtradas.txt
+            outros_jogadores.txt
+            linhas_para_corrigir.txt
+            resumo.txt
